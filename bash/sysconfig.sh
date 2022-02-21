@@ -71,7 +71,29 @@ function cleanup {
 #This function produces the network configuration for our report
 function getipinfo {
   # reuse our netid.sh script from lab 4
-  bash ~/COMP2101/bash/netid.sh
+  count=$(lshw -class network | awk '/logical name:/{print $3}' | wc -l)
+for((w=1;w<=$count;w+=1));
+do
+  interface=$(lshw -class network |
+    awk '/logical name:/{print $3}' |
+      awk -v z=$w 'NR==z{print $1; exit}')
+  if [[ $interface = lo* ]] ; then continue ; fi
+  [ "$verbose" = "yes" ] && echo "Reporting on interface(s): $interface"
+  [ "$verbose" = "yes" ] && echo "Getting IPV4 address and name for interface $interface"
+  ipv4_address=$(ip a s $interface|awk -F '[/ ]+' '/inet /{print $3}')
+  ipv4_hostname=$(getent hosts $ipv4_address | awk '{print $2}')
+  [ "$verbose" = "yes" ] && echo "Getting IPV4 network block info and name for interface $interface"
+  network_address=$(ip route list dev $interface scope link|cut -d ' ' -f 1)
+  network_number=$(cut -d / -f 1 <<<"$network_address")
+  network_name=$(getent networks $network_number|awk '{print $1}')
+  echo Interface $interface:
+  echo ================
+  echo Address         : $ipv4_address
+  echo Name            : $ipv4_hostname
+  echo Network Address : $network_address
+  echo Network Number	: $network_number
+  echo Network Name    : $network_name
+done
 }
 
 # process command line options
